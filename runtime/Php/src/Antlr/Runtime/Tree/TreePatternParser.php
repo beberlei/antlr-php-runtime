@@ -109,7 +109,7 @@ class TreePatternParser
             if ($this->ttype != TreePatternLexer::ID) {
                 return null;
             }
-            $this->label = $this->tokenizer->sval;
+            $label = $this->tokenizer->sval;
             $this->ttype = $this->tokenizer->nextToken();
             if ($this->ttype != TreePatternLexer::COLON) {
                 return null;
@@ -122,9 +122,9 @@ class TreePatternParser
             $this->ttype = $this->tokenizer->nextToken();
             $wildcardPayload = new CommonToken(0, ".");
 
-            //TreeWizard.TreePattern node = new TreeWizard.WildcardTreePattern(wildcardPayload); // TODO
+            $node = new WildcardTreePattern($wildcardPayload, true);
 
-            if (§label != null) {
+            if ($label != null) {
                 $node->label = $label;
             }
             return $node;

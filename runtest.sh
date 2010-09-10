@@ -4,4 +4,4 @@ export PROJ_PATH=`pwd`
 
 cd runtime/Php/test
 
-phpunit --bootstrap bootstrap.php Antlr/Tests/$1
+phpunit "$2" --bootstrap bootstrap.php Antlr/Tests/$1

@@ -1,2 +1,2 @@
-runtime/Php/test/Antlr/Runtime/generated/*.php
-runtime/Php/test/Antlr/Runtime/generated/*.tokens
+runtime/Php/test/Antlr/Tests/generated/*.php
+runtime/Php/test/Antlr/Tests/generated/*.tokens

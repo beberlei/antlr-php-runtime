@@ -47,4 +47,9 @@
             <fileset dir="${dir.tool.resources}"/>
         </jar>
     </target>
+
+    <target name="test" depends="antlr-php-jar">
+        <exec executable="${dir.project}/gengrammars.sh" />
+        <exec executable="${dir.project}/runtests.sh" />
+    </target>
 </project>

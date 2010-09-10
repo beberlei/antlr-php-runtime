@@ -31,6 +31,7 @@
 namespace Antlr\Runtime\Tree;
 
 use Antlr\Runtime\Token;
+use ArrayObject;
 
 /** Build and navigate trees with this object.  Must know about the names
  *  of tokens so you have to pass in a map or array of token names (from which
@@ -48,50 +49,6 @@ use Antlr\Runtime\Token;
  *  patterns like "(A B C)".  You can create a tree from that pattern or
  *  match subtrees against it.
  */
-interface WizardContextVisitor
-{
-    public function visit($t, $parent = null, $childIndex = null, $labels = null);
-}
-
-class TypeContextVisitor implements WizardContextVisitor
-{
-    private $nodes = array();
-
-    public function visit($t, $parent = null, $childIndex = null, $labels = null)
-    {
-        $this->nodes[] = $t;
-    }
-
-    public function getNodes()
-    {
-        return $this->nodes;
-    }
-}
-
-class PatternContextVisitor implements WizardContextVisitor
-{
-    /** @var TreeWizard */
-    protected $wizard;
-
-    protected $subtrees = array();
-
-    public function __construct($wizard)
-    {
-        $this->wizard = $wizard;
-    }
-
-    public function visit($t, $parent = null, $childIndex = null, $labels = null)
-    {
-        if ( $this->wizard->parse($t, $tpattern, null) ) {
-            $this->subtrees[] = $t;
-        }
-    }
-
-    public function getSubstrees()
-    {
-        return $this->subtrees;
-    }
-}
 
 class TreeWizard
 {
@@ -226,15 +183,14 @@ class TreeWizard
     {
         $subtrees = array();
         // Create a TreePattern from the pattern
-        $tokenizer = new TreePatternLexer($pattern);
-        $parser = new TreePatternParser($this->tokenizer, $this, new TreePatternTreeAdaptor());
+        $parser = new TreePatternParser(new TreePatternLexer($pattern), $this, new TreePatternTreeAdaptor());
         $tpattern = $parser->pattern();
         // don't allow invalid patterns
-        if ($tpattern == null || $tpattern . isNil() || get_class($tpattern) == 'WildcardTreePattern') {
+        if ($tpattern == null || $tpattern->isNil() || $tpattern instanceof WildcardTreePattern) {
             return null;
         }
         $rootTokenType = $tpattern->getType();
-        $visitor = new PatternContextVisitor($this);
+        $visitor = new PatternContextVisitor($this, $tpattern);
         $this->visitByType($t, $rootTokenType, $visitor);
         return $visitor->getSubstrees();
     }
@@ -282,20 +238,13 @@ class TreeWizard
         $parser = new TreePatternParser($tokenizer, $this, new TreePatternTreeAdaptor());
         $tpattern = $parser->pattern();
         // don't allow invalid patterns
-        if ($tpattern == null || $tpattern . isNil() || get_class($tpattern) == 'WildcardTreePattern') {
+        if ($tpattern == null || $tpattern->isNil() || $tpattern instanceof WildcardTreePattern) {
             return null;
         }
-        $labels = array();
+        $labels = new ArrayObject();
         $rootTokenType = $tpattern->getType();
-        /* @todo visit(t, rootTokenType, new TreeWizard.ContextVisitor() {
-          public void visit(Object t, Object parent, int childIndex, Map unusedlabels) {
-          // the unusedlabels arg is null as visit on token type doesn't set.
-          labels.clear();
-          if ( _parse(t, tpattern, labels) ) {
-          visitor.visit(t, parent, childIndex, labels);
-          }
-          }
-          }); */
+
+        $this->visitByType($t, $rootTokenType, new PatternContextVisitor($this, $tpattern, $labels, $visitor));
     }
 
     /** Given a pattern like (ASSIGN %lhs:ID %rhs:.) with optional labels
@@ -309,11 +258,15 @@ class TreeWizard
      *
      *  TODO: what's a better way to indicate bad pattern? Exceptions are a hassle
      */
-    public function parse($t, $pattern, $labels = null)
+    public function parse($t, $pattern, ArrayObject $labels = null)
     {
-        $tokenizer = new TreePatternLexer($pattern);
-        $parser = new TreePatternParser($tokenizer, $this, new TreePatternTreeAdaptor());
-        $tpattern = $parser->pattern();
+        if (is_string($pattern)) {
+            $tokenizer = new TreePatternLexer($pattern);
+            $parser = new TreePatternParser($tokenizer, $this, new TreePatternTreeAdaptor());
+            $tpattern = $parser->pattern();
+        } else {
+            $tpattern = $pattern;
+        }
         /*
           System.out.println("t="+((Tree)t).toStringTree());
           System.out.println("scant="+tpattern.toStringTree());
@@ -326,14 +279,14 @@ class TreeWizard
      *  text arguments on nodes.  Fill labels map with pointers to nodes
      *  in tree matched against nodes in pattern with labels.
      */
-    protected function _parse($t1, $tpattern, $labels = null)
+    protected function _parse($t1, $tpattern, ArrayObject $labels = null)
     {
         // make sure both are non-null
         if ($t1 == null || $tpattern == null) {
             return false;
         }
         // check roots (wildcard matches anything)
-        if (get_class($tpattern) == 'WildcardTreePattern') {
+        if ( !($tpattern instanceof WildcardTreePattern)) {
             if ($this->adaptor->getType($t1) != $tpattern->getType())
                 return false;
             // if pattern has text, check node text
